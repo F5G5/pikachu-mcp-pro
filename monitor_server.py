@@ -216,10 +216,7 @@ PID       Name                     CPU%    Mem%    Status
         # 按内存排序
         by_mem = sorted(processes, key=lambda x: x.get('memory_percent', 0), reverse=True)[:top]
         
-        result += f"\n\n[TOP {top} PROCESSES BY MEMORY]
-{'='*50}
-PID       Name                     CPU%    Mem%    Status
-{'-'*60}"
+        result += f"\n\n[TOP {top} PROCESSES BY MEMORY]\n{'='*50}\nPID       Name                     CPU%    Mem%    Status\n{'-'*60}"
         
         for p in by_mem:
             result += f"\n{p['pid']:<8} {p['name'][:24]:<24} {p.get('cpu_percent', 0):>5.1f}  {p.get('memory_percent', 0):>5.1f}  {p.get('status', '?')}"

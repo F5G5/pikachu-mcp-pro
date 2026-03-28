@@ -6,8 +6,6 @@ Pikachu Connection Pool Server - 专业级连接池 ⚡
 """
 from fastmcp import FastMCP
 import sqlite3
-import pymysql
-import psycopg2
 import threading
 import queue
 import time
@@ -16,6 +14,21 @@ from datetime import datetime
 from contextlib import contextmanager
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field
+
+# 可选依赖
+try:
+    import pymysql
+    HAS_PYMYSQL = True
+except ImportError:
+    pymysql = None
+    HAS_PYMYSQL = False
+
+try:
+    import psycopg2
+    HAS_PSYCOPG2 = True
+except ImportError:
+    psycopg2 = None
+    HAS_PSYCOPG2 = False
 
 mcp = FastMCP("PikachuPool")
 
@@ -84,6 +97,8 @@ class ConnectionPool:
                 conn = sqlite3.connect(path, check_same_thread=False)
                 conn.row_factory = sqlite3.Row
             elif self.db_type == "mysql":
+                if not HAS_PYMYSQL:
+                    return None
                 conn = pymysql.connect(
                     host=self.kwargs.get("host", "localhost"),
                     port=self.kwargs.get("port", 3306),
@@ -93,6 +108,8 @@ class ConnectionPool:
                     charset=self.kwargs.get("charset", "utf8mb4")
                 )
             elif self.db_type == "postgresql":
+                if not HAS_PSYCOPG2:
+                    return None
                 conn = psycopg2.connect(
                     host=self.kwargs.get("host", "localhost"),
                     port=self.kwargs.get("port", 5432),

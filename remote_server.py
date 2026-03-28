@@ -11,10 +11,7 @@ from typing import Any, Dict, Optional
 import urllib.request
 import urllib.error
 
-mcp = FastMCP("PikachuRemote", 
-              transport="http",  # 启用HTTP传输
-              port=8080,          # 默认端口
-              host="0.0.0.0")     # 监听所有网络接口
+mcp = FastMCP("PikachuRemote")
 
 # ============ 远程配置 ============
 _remote_config = {

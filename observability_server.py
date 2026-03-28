@@ -642,13 +642,17 @@ def _background_monitor():
     while True:
         try:
             time.sleep(30)  # 每30秒
-            system_metrics()  # 采集系统指标
         except:
             pass
 
-import asyncio
-_loop = asyncio.new_event_loop()
-_loop.run_in_executor(None, _background_monitor)
+# 启动后台监控（延迟启动，避免阻塞）
+_background_started = False
+def _start_background_monitor():
+    global _background_started
+    if not _background_started:
+        t = threading.Thread(target=_background_monitor, daemon=True)
+        t.start()
+        _background_started = True
 
 if __name__ == "__main__":
     print("""
@@ -657,4 +661,6 @@ if __name__ == "__main__":
 ║     OpenTelemetry Standard: Tracing + Metrics + Logging      ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
+    # 启动后台监控
+    _start_background_monitor()
     mcp.run()
