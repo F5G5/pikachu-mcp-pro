@@ -41,6 +41,8 @@ class ConnectionPool:
         if query.strip().upper().startswith('SELECT'):
             rows = cursor.fetchall()
             columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            # 转换为字典，方便访问
+            rows = [dict(zip(columns, row)) for row in rows]
             return columns, rows
         else:
             conn.commit()
@@ -216,7 +218,8 @@ def execute_sql(query: str, params: str = "{}", db_name: str = "default") -> str
         
         # 数据行
         for row in result[:50]:
-            output += " | ".join(f"{str(row.get(c, '')):<20}" for c in columns[:8]) + "\n"
+            row_dict = dict(zip(columns, row)) if not isinstance(row, dict) else row
+            output += " | ".join(f"{str(row_dict.get(c, '')):<20}" for c in columns[:8]) + "\n"
         
         if len(result) > 50:
             output += f"\n... and {len(result) - 50} more rows"
