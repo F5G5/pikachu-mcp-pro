@@ -387,9 +387,61 @@ Latency: {latency:.1f}ms
 Tables: {table_count}
 Connection: {db_name}
 Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
-    
+
     except Exception as e:
         return f"[HEALTH: FAIL]\nError: {str(e)}"
+
+# ============ 全文搜索 ============
+
+@mcp.tool()
+def full_text_search(table_name: str, column: str, keyword: str, 
+                    db_name: str = "default", limit: int = 50) -> str:
+    """全文搜索
+    table_name: 表名
+    column: 搜索的列
+    keyword: 关键词
+    """
+    try:
+        safe_keyword = keyword.replace("%", "\\%").replace("_", "\\_")
+        query = f"SELECT * FROM {table_name} WHERE {column} LIKE ? LIMIT ?"
+        
+        columns, rows = _pool.execute(db_name, query, (f"%{keyword}%", limit))
+        
+        if not rows:
+            return f"[NOT FOUND] No results for '{keyword}' in {table_name}.{column}"
+        
+        result = f"[SEARCH RESULTS] '{keyword}' in {table_name}.{column}\n"
+        result += f"{'='*60}\n"
+        result += f"Found: {len(rows)} matches\n\n"
+        
+        result += " | ".join(f"{c:<15}" for c in columns) + "\n"
+        result += "-" * 60 * 2 + "\n"
+        
+        for row in rows[:limit]:
+            result += " | ".join(f"{str(row.get(c, '')):<15}" for c in columns) + "\n"
+        
+        return result
+    
+    except Exception as e:
+        return f"[ERROR] {str(e)}"
+
+@mcp.tool()
+def count_rows(table_name: str, db_name: str = "default", 
+              where: str = "") -> str:
+    """统计行数"""
+    try:
+        if where:
+            query = f"SELECT COUNT(*) as cnt FROM {table_name} WHERE {where}"
+        else:
+            query = f"SELECT COUNT(*) as cnt FROM {table_name}"
+        
+        columns, rows = _pool.execute(db_name, query)
+        count = rows[0]['cnt'] if rows else 0
+        
+        return f"[COUNT] {table_name}: {count} rows" + (f" (WHERE {where})" if where else "")
+    
+    except Exception as e:
+        return f"[ERROR] {str(e)}"
 
 if __name__ == "__main__":
     mcp.run()

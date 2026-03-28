@@ -623,6 +623,86 @@ def performance_report() -> str:
     
     return result
 
+# ============ 一站式仪表盘 ============
+
+@mcp.tool()
+def dashboard() -> str:
+    """综合仪表盘 - 一页看完所有状态"""
+    stats = _store.get_stats()
+    
+    # 系统指标
+    try:
+        cpu = psutil.cpu_percent(interval=0.1)
+        mem = psutil.virtual_memory().percent
+        disk = psutil.disk_usage('.').percent
+    except:
+        cpu = mem = disk = 0
+    
+    # 最近日志
+    try:
+        recent_logs = _store._logs[-5:] if _store._logs else []
+    except:
+        recent_logs = []
+    
+    # 最近告警
+    try:
+        recent_alerts = _store._alerts[-3:] if _store._alerts else []
+    except:
+        recent_alerts = []
+    
+    # 性能统计
+    try:
+        perf_stats = _tracker.get_all_stats()
+        top_ops = sorted(perf_stats.items(), key=lambda x: x[1]['count'], reverse=True)[:5]
+    except:
+        top_ops = []
+    
+    result = f"""
+╔══════════════════════════════════════════════════════════════════════╗
+║                    PIKACHU OBSERVABILITY DASHBOARD                    ║
+║                    {datetime.now().strftime('%Y-%m-%d %H:%M:%S'):<32} ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+[SYSTEM HEALTH]
+{'─'*64}
+  CPU:     {cpu:>5.1f}%  {'✓' if cpu < 80 else '!'}
+  Memory:  {mem:>5.1f}%  {'✓' if mem < 80 else '!'}
+  Disk:    {disk:>5.1f}%  {'✓' if disk < 80 else '!'}
+
+[STORE STATISTICS]
+{'─'*64}
+  Metrics:   {stats['metrics_count']:>6} stored
+  Traces:    {stats['traces_count']:>6}
+  Logs:      {stats['logs_count']:>6}
+  Alerts:    {stats['alerts_count']:>6}
+  Uptime:    {_format_duration(stats['uptime_seconds'])}
+
+[TOP OPERATIONS]
+{'─'*64}"""
+    
+    for op, s in top_ops:
+        result += f"\n  {op:<30} {s['count']:>5} calls  avg {s['avg_ms']:>7.1f}ms"
+    
+    if recent_logs:
+        result += f"\n\n[RECENT LOGS]"
+        result += f"\n{'─'*64}"
+        for log in recent_logs:
+            ts = datetime.fromtimestamp(log['timestamp']).strftime('%H:%M:%S')
+            result += f"\n  {ts} [{log['level']:<5}] {log['message'][:40]}"
+    
+    if recent_alerts:
+        result += f"\n\n[RECENT ALERTS]"
+        result += f"\n{'─'*64}"
+        for alert in recent_alerts:
+            ts = datetime.fromtimestamp(alert['timestamp']).strftime('%H:%M:%S')
+            result += f"\n  {ts} {alert['metric']} = {alert['value']} (threshold: {alert['threshold']})"
+    
+    result += f"\n\n{'═'*64}"
+    result += f"\n  All systems operational ✓" if cpu < 80 and mem < 80 and disk < 80 else "\n  ⚠ Some systems need attention"
+    result += f"\n{'═'*64}"
+    
+    return result
+
 # ============ 辅助函数 ============
 
 def _format_duration(seconds: float) -> str:
