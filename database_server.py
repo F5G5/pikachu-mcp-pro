@@ -38,7 +38,10 @@ class ConnectionPool:
         # 安全的参数化查询
         cursor.execute(query, params)
         
-        if query.strip().upper().startswith('SELECT'):
+        query_upper = query.strip().upper()
+        
+        # SELECT和PRAGMA都返回数据
+        if query_upper.startswith('SELECT') or query_upper.startswith('PRAGMA'):
             rows = cursor.fetchall()
             columns = [desc[0] for desc in cursor.description] if cursor.description else []
             # 转换为字典，方便访问
@@ -140,30 +143,31 @@ def list_tables(db_name: str = "default") -> str:
 @mcp.tool()
 def describe_table(table_name: str, db_name: str = "default") -> str:
     """查看表结构"""
+    import traceback
     try:
         # SQLite
         columns, rows = _pool.execute(db_name, f"PRAGMA table_info({table_name})")
-        
-        if not rows:
-            # MySQL/PostgreSQL
-            columns, rows = _pool.execute(db_name, f"DESCRIBE {table_name}")
         
         result = f"[TABLE: {table_name}]\n" + "=" * 50 + "\n"
         result += f"{'Column':<20} {'Type':<15} {'Nullable':<10} {'Key'}\n"
         result += "-" * 60 + "\n"
         
+        if not rows:
+            result += "  (no columns)\n"
+            return result
+        
         for row in rows:
-            name = row.get('name', row.get('Field', '?'))
-            col_type = row.get('type', row.get('Type', '?'))
-            nullable = row.get('notnull', row.get('Null', '?'))
-            key = row.get('pk', row.get('Key', ''))
-            
-            result += f"{name:<20} {str(col_type):<15} {str(nullable):<10} {key}\n"
+            # row is a dict with keys: cid, name, type, notnull, dflt_value, pk
+            name = str(row.get('name', '?'))
+            col_type = str(row.get('type', '?'))
+            nullable = "NO" if row.get('notnull', 0) else "YES"
+            key = "PK" if row.get('pk', 0) else ""
+            result += f"{name:<20} {col_type:<15} {nullable:<10} {key}\n"
         
         return result
     
     except Exception as e:
-        return f"[ERROR] {str(e)}"
+        return f"[ERROR] {str(e)}\n{traceback.format_exc()}"
 
 @mcp.tool()
 def show_indexes(table_name: str, db_name: str = "default") -> str:
